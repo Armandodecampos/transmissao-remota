@@ -47,6 +47,12 @@
         <!-- Preview Area -->
         <div class="video-container relative">
             <video id="screenVideo" autoplay playsinline muted></video>
+            <button id="playBtn" class="absolute inset-0 z-10 bg-slate-900/80 hidden flex-col items-center justify-center gap-4">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg class="w-8 h-8 text-white fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="font-bold">Clique para iniciar o vídeo</span>
+            </button>
             <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-slate-900/50">
                 <div class="text-center p-4">
                     <p class="font-medium">Aguardando vídeo...</p>
@@ -82,6 +88,7 @@
         const remoteIdInput = document.getElementById('remote-id');
         const placeholder = document.getElementById('placeholder');
         const statusBadge = document.getElementById('statusBadge');
+        const playBtn = document.getElementById('playBtn');
 
         // Inicializa o PeerJS com um ID aleatório de 6 dígitos
         const randomId = Math.floor(100000 + Math.random() * 900000).toString();
@@ -94,6 +101,16 @@
             myIdDisplay.innerText = id;
         });
 
+        // Quando recebemos uma conexão de dados (pedido para assistir)
+        peer.on('connection', (conn) => {
+            conn.on('open', () => {
+                if (video.srcObject) {
+                    console.log("Recebido pedido de conexão de: " + conn.peer + ". Enviando stream...");
+                    peer.call(conn.peer, video.srcObject);
+                }
+            });
+        });
+
         // Quando alguém tenta nos ligar (enviar vídeo)
         peer.on('call', (call) => {
             call.answer(); // Atende a chamada
@@ -101,7 +118,10 @@
                 video.srcObject = remoteStream;
 
                 video.onloadedmetadata = () => {
-                    video.play().catch(e => console.error("Erro ao iniciar playback remoto:", e));
+                    video.play().catch(e => {
+                        console.error("Erro ao iniciar playback remoto:", e);
+                        playBtn.classList.remove('hidden');
+                    });
                 };
 
                 placeholder.classList.add('hidden');
@@ -147,15 +167,21 @@
             const remoteId = remoteIdInput.value;
             if (!remoteId) return alert("Insira um ID remoto");
 
-            // No WebRTC, quem "assiste" geralmente inicia a conexão para receber o stream
-            // Ou o transmissor inicia a chamada enviando o seu stream de tela
             if (video.srcObject) {
                 // Se eu já estou capturando minha tela, envio para o ID remoto
                 peer.call(remoteId, video.srcObject);
                 alert("Enviando sinal para: " + remoteId);
             } else {
-                alert("Primeiro clique em 'Transmitir Minha Tela' antes de conectar.");
+                // Se eu não estou transmitindo, eu me conecto para "pedir" o stream
+                const conn = peer.connect(remoteId);
+                alert("Solicitando transmissão de: " + remoteId);
             }
+        };
+
+        playBtn.onclick = () => {
+            video.play().then(() => {
+                playBtn.classList.add('hidden');
+            }).catch(e => console.error("Erro ao iniciar playback manual:", e));
         };
 
         peer.on('error', (err) => {
