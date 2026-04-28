@@ -19,6 +19,20 @@
             height: auto;
             max-height: 60vh;
         }
+        .video-container:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0;
+            background: #000;
+        }
+        .video-container:fullscreen #screenVideo {
+            max-height: 100vh;
+            width: auto;
+            max-width: 100vw;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-4 md:p-8">
@@ -59,6 +73,11 @@
                 </div>
             </div>
             <div id="statusBadge" class="absolute top-4 left-4 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase hidden">Transmitindo</div>
+            <button id="fullscreenBtn" class="absolute bottom-4 right-4 z-20 bg-slate-900/50 hover:bg-slate-900/80 p-2 rounded-lg transition-all border border-slate-700" title="Tela Cheia">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                </svg>
+            </button>
         </div>
 
         <!-- Controls -->
@@ -89,6 +108,8 @@
         const placeholder = document.getElementById('placeholder');
         const statusBadge = document.getElementById('statusBadge');
         const playBtn = document.getElementById('playBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const videoContainer = document.querySelector('.video-container');
 
         // Inicializa o PeerJS com um ID aleatório de 6 dígitos
         const randomId = Math.floor(100000 + Math.random() * 900000).toString();
@@ -182,6 +203,26 @@
             video.play().then(() => {
                 playBtn.classList.add('hidden');
             }).catch(e => console.error("Erro ao iniciar playback manual:", e));
+        };
+
+        fullscreenBtn.onclick = () => {
+            if (!document.fullscreenElement) {
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) { /* Safari */
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.msRequestFullscreen) { /* IE11 */
+                    videoContainer.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { /* Safari */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE11 */
+                    document.msExitFullscreen();
+                }
+            }
         };
 
         peer.on('error', (err) => {
