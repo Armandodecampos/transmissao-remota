@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Screen Streamer - Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo PeerJS para facilitar a conexão entre dispositivos -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        .video-container {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        #screenVideo {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-4 md:p-8">
+
+    <div class="max-w-4xl w-full space-y-6">
+        <header class="text-center">
+            <h1 class="text-3xl font-bold text-blue-400">Transmissor Multi-Dispositivo</h1>
+            <p class="text-slate-400 mt-2">Compartilhe sua tela via Internet</p>
+        </header>
+
+        <!-- Peer Info Section -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold">Seu ID de Conexão:</p>
+                <div id="my-id" class="text-xl font-mono text-blue-300">Carregando...</div>
+            </div>
+            <div class="flex flex-col w-full md:w-auto gap-2">
+                <p class="text-xs text-slate-500 uppercase font-bold text-center md:text-left">Assistir outra transmissão:</p>
+                <div class="flex gap-2">
+                    <input type="text" id="remote-id" placeholder="Colar ID aqui" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    <button id="connectBtn" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold transition-all">Conectar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Area -->
+        <div class="video-container relative">
+            <video id="screenVideo" autoplay playsinline></video>
+            <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-slate-900/50">
+                <div class="text-center p-4">
+                    <p class="font-medium">Aguardando vídeo...</p>
+                </div>
+            </div>
+            <div id="statusBadge" class="absolute top-4 left-4 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase hidden">Transmitindo</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col items-center gap-4">
+            <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg">
+                Transmitir Minha Tela
+            </button>
+        </div>
+
+        <!-- Instructions -->
+        <div class="text-sm text-slate-400 bg-slate-800/30 p-4 rounded-lg">
+            <p class="font-bold text-slate-200 mb-1">Como usar em dois dispositivos:</p>
+            <ol class="list-decimal ml-5 space-y-1">
+                <li>Abra este arquivo em dois PCs ou um PC e um Celular.</li>
+                <li>No PC que vai transmitir, clique em <strong>"Transmitir Minha Tela"</strong>.</li>
+                <li>Copie o <strong>ID de Conexão</strong> que apareceu no PC.</li>
+                <li>No outro dispositivo, cole o ID no campo e clique em <strong>"Conectar"</strong>.</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('screenVideo');
+        const startBtn = document.getElementById('startBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const myIdDisplay = document.getElementById('my-id');
+        const remoteIdInput = document.getElementById('remote-id');
+        const placeholder = document.getElementById('placeholder');
+        const statusBadge = document.getElementById('statusBadge');
+
+        // Inicializa o PeerJS (Ele gera um ID único e lida com a sinalização)
+        const peer = new Peer();
+
+        let currentCall = null;
+
+        // Quando o ID é gerado pelo servidor PeerJS
+        peer.on('open', (id) => {
+            myIdDisplay.innerText = id;
+        });
+
+        // Quando alguém tenta nos ligar (enviar vídeo)
+        peer.on('call', (call) => {
+            call.answer(); // Atende a chamada
+            call.on('stream', (remoteStream) => {
+                video.srcObject = remoteStream;
+                placeholder.classList.add('hidden');
+                statusBadge.innerText = "Recebendo Transmissão";
+                statusBadge.classList.remove('hidden', 'bg-blue-600');
+                statusBadge.classList.add('bg-green-600');
+            });
+        });
+
+        // FUNÇÃO PARA TRANSMITIR
+        startBtn.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                video.srcObject = stream;
+                placeholder.classList.add('hidden');
+                statusBadge.innerText = "Transmitindo";
+                statusBadge.classList.remove('hidden');
+                
+                // Nota: Para transmitir para alguém, a pessoa precisa se conectar a você primeiro
+                // ou você precisa iniciar a chamada usando o ID dela.
+                console.log("Stream capturado localmente. Aguardando conexões.");
+                
+                stream.getVideoTracks()[0].onended = () => {
+                    statusBadge.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                };
+            } catch (err) {
+                alert("Erro ao capturar tela: " + err.message);
+            }
+        };
+
+        // FUNÇÃO PARA SE CONECTAR A ALGUÉM
+        connectBtn.onclick = () => {
+            const remoteId = remoteIdInput.value;
+            if (!remoteId) return alert("Insira um ID remoto");
+
+            // No WebRTC, quem "assiste" geralmente inicia a conexão para receber o stream
+            // Ou o transmissor inicia a chamada enviando o seu stream de tela
+            if (video.srcObject) {
+                // Se eu já estou capturando minha tela, envio para o ID remoto
+                peer.call(remoteId, video.srcObject);
+                alert("Enviando sinal para: " + remoteId);
+            } else {
+                alert("Primeiro clique em 'Transmitir Minha Tela' antes de conectar.");
+            }
+        };
+
+        peer.on('error', (err) => {
+            console.error("Erro PeerJS:", err);
+            alert("Erro de conexão: " + err.type);
+        });
+    </script>
+</body>
+</html>
