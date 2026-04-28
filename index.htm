@@ -99,7 +99,11 @@
             call.answer(); // Atende a chamada
             call.on('stream', (remoteStream) => {
                 video.srcObject = remoteStream;
-                video.play().catch(e => console.error("Erro ao iniciar playback remoto:", e));
+
+                video.onloadedmetadata = () => {
+                    video.play().catch(e => console.error("Erro ao iniciar playback remoto:", e));
+                };
+
                 placeholder.classList.add('hidden');
                 statusBadge.innerText = "Recebendo Transmissão";
                 statusBadge.classList.remove('hidden', 'bg-blue-600');
@@ -109,6 +113,10 @@
 
         // FUNÇÃO PARA TRANSMITIR
         startBtn.onclick = async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                return alert("Seu navegador não suporta a captura de tela. Por favor, use um computador com Chrome, Edge ou Firefox.");
+            }
+
             try {
                 const stream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
