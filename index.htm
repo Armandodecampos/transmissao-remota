@@ -46,7 +46,7 @@
 
         <!-- Preview Area -->
         <div class="video-container relative">
-            <video id="screenVideo" autoplay playsinline></video>
+            <video id="screenVideo" autoplay playsinline muted></video>
             <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-slate-500 bg-slate-900/50">
                 <div class="text-center p-4">
                     <p class="font-medium">Aguardando vídeo...</p>
@@ -99,6 +99,7 @@
             call.answer(); // Atende a chamada
             call.on('stream', (remoteStream) => {
                 video.srcObject = remoteStream;
+                video.play().catch(e => console.error("Erro ao iniciar playback remoto:", e));
                 placeholder.classList.add('hidden');
                 statusBadge.innerText = "Recebendo Transmissão";
                 statusBadge.classList.remove('hidden', 'bg-blue-600');
@@ -115,6 +116,7 @@
                 });
                 
                 video.srcObject = stream;
+                video.play().catch(e => console.error("Erro ao iniciar playback local:", e));
                 placeholder.classList.add('hidden');
                 statusBadge.innerText = "Transmitindo";
                 statusBadge.classList.remove('hidden');
