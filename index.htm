@@ -92,7 +92,7 @@
             <p class="font-bold text-slate-200 mb-1">Como usar em dois dispositivos:</p>
             <ol class="list-decimal ml-5 space-y-1">
                 <li>Abra este arquivo em dois PCs ou um PC e um Celular.</li>
-                <li>No PC que vai transmitir, clique em <strong>"Transmitir Minha Tela"</strong>.</li>
+                <li>No PC que vai transmitir, clique em <strong>"Transmitir Minha Tela"</strong>. <em>(Lembre-se de marcar "Compartilhar áudio do sistema" se desejar transmitir som)</em>.</li>
                 <li>Copie o <strong>ID de Conexão</strong> que apareceu no PC.</li>
                 <li>No outro dispositivo, cole o ID no campo e clique em <strong>"Conectar"</strong>.</li>
             </ol>
@@ -137,6 +137,7 @@
             call.answer(); // Atende a chamada
             call.on('stream', (remoteStream) => {
                 video.srcObject = remoteStream;
+                video.muted = false; // Desmuta para quem está assistindo
 
                 video.onloadedmetadata = () => {
                     video.play().catch(e => {
@@ -200,6 +201,7 @@
         };
 
         playBtn.onclick = () => {
+            video.muted = false;
             video.play().then(() => {
                 playBtn.classList.add('hidden');
             }).catch(e => console.error("Erro ao iniciar playback manual:", e));
