@@ -81,10 +81,20 @@
         </div>
 
         <!-- Controls -->
-        <div class="flex flex-col items-center gap-4">
+        <div class="flex flex-wrap justify-center gap-4">
             <button id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg">
                 Transmitir Minha Tela
             </button>
+            <button id="regionStartBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-lg font-bold transition-all flex items-center gap-2 shadow-lg">
+                Transmitir Somente Área
+            </button>
+        </div>
+
+        <!-- Capture Zone -->
+        <div id="captureZone" class="bg-slate-800 border-2 border-dashed border-indigo-500 rounded-xl p-8 text-center space-y-4">
+            <h2 class="text-xl font-bold text-indigo-400">Área de Captura</h2>
+            <p class="text-slate-400">Esta área será transmitida ao clicar no botão acima e selecionar "Esta Aba".</p>
+            <div id="captureClock" class="text-4xl font-mono text-white">00:00:00</div>
         </div>
 
         <!-- Instructions -->
@@ -102,6 +112,7 @@
     <script>
         const video = document.getElementById('screenVideo');
         const startBtn = document.getElementById('startBtn');
+        const regionStartBtn = document.getElementById('regionStartBtn');
         const connectBtn = document.getElementById('connectBtn');
         const myIdDisplay = document.getElementById('my-id');
         const remoteIdInput = document.getElementById('remote-id');
@@ -110,6 +121,14 @@
         const playBtn = document.getElementById('playBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const videoContainer = document.querySelector('.video-container');
+        const captureZone = document.getElementById('captureZone');
+        const captureClock = document.getElementById('captureClock');
+
+        // Atualiza o relógio na zona de captura
+        setInterval(() => {
+            const now = new Date();
+            captureClock.innerText = now.toLocaleTimeString();
+        }, 1000);
 
         // Inicializa o PeerJS com um ID aleatório de 6 dígitos e configuração de servidores ICE
         const randomId = Math.floor(100000 + Math.random() * 900000).toString();
@@ -164,7 +183,23 @@
             });
         });
 
-        // FUNÇÃO PARA TRANSMITIR
+        // FUNÇÃO PARA LIDAR COM O STREAM
+        function handleStream(stream) {
+            video.srcObject = stream;
+            video.play().catch(e => console.error("Erro ao iniciar playback local:", e));
+            placeholder.classList.add('hidden');
+            statusBadge.innerText = "Transmitindo";
+            statusBadge.classList.remove('hidden');
+
+            console.log("Stream capturado localmente. Aguardando conexões.");
+
+            stream.getVideoTracks()[0].onended = () => {
+                statusBadge.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            };
+        }
+
+        // FUNÇÃO PARA TRANSMITIR TELA CHEIA
         startBtn.onclick = async () => {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
                 return alert("Seu navegador não suporta a captura de tela. Por favor, use um computador com Chrome, Edge ou Firefox.");
@@ -175,23 +210,44 @@
                     video: true,
                     audio: true
                 });
-                
-                video.srcObject = stream;
-                video.play().catch(e => console.error("Erro ao iniciar playback local:", e));
-                placeholder.classList.add('hidden');
-                statusBadge.innerText = "Transmitindo";
-                statusBadge.classList.remove('hidden');
-                
-                // Nota: Para transmitir para alguém, a pessoa precisa se conectar a você primeiro
-                // ou você precisa iniciar a chamada usando o ID dela.
-                console.log("Stream capturado localmente. Aguardando conexões.");
-                
-                stream.getVideoTracks()[0].onended = () => {
-                    statusBadge.classList.add('hidden');
-                    placeholder.classList.remove('hidden');
-                };
+                handleStream(stream);
             } catch (err) {
                 alert("Erro ao capturar tela: " + err.message);
+            }
+        };
+
+        // FUNÇÃO PARA TRANSMITIR SOMENTE UMA ÁREA (Region Capture)
+        regionStartBtn.onclick = async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                return alert("Seu navegador não suporta a captura de tela.");
+            }
+
+            try {
+                // Para Region Capture, preferCurrentTab é geralmente necessário para melhor UX
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        displaySurface: "browser",
+                    },
+                    audio: true,
+                    preferCurrentTab: true
+                });
+
+                const [track] = stream.getVideoTracks();
+
+                // Verifica se o navegador suporta Region Capture
+                if (typeof CropTarget !== 'undefined' && track.cropTo) {
+                    const cropTarget = await CropTarget.fromElement(captureZone);
+                    await track.cropTo(cropTarget);
+                } else {
+                    console.warn("Region Capture não suportado neste navegador. Transmitindo aba inteira.");
+                    alert("Seu navegador não suporta Region Capture (disponível no Chrome 104+). Transmitindo a aba inteira.");
+                }
+
+                handleStream(stream);
+            } catch (err) {
+                if (err.name !== 'NotAllowedError') {
+                    alert("Erro ao capturar área: " + err.message);
+                }
             }
         };
 
